@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scrappy Modular Character Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Big+Shoulders+Display:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --paper: #EDF1F0;
+  --surface: #F8FAF9;
+  --ink: #15222A;
+  --muted: #53636B;
+  --line: #CAD5D4;
+  --code-bg: #E2E9E8;
+  --alex: #B4541A; --alex-tint: #F8E7DA; --alex-ink: #7A3510;
+  --joe: #0A6F7C; --joe-tint: #D9EEF0; --joe-ink: #064A53;
+  --both: #6446A3; --both-tint: #EAE3F6; --both-ink: #45307A;
+  --risk: #B0271F; --risk-tint: #F9E3E1;
+  --ok: #2D7A38; --ok-tint: #E0F0E2;
+  --keep: #5B6B72;
+  --display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0E1417; --surface: #141C20; --ink: #E2E9EB; --muted: #9BAAB1; --line: #2A373D; --code-bg: #1A252A;
+    --alex: #EE8F55; --alex-tint: #2A1C13; --alex-ink: #F6B68E;
+    --joe: #45C0CC; --joe-tint: #0F2629; --joe-ink: #93DDE4;
+    --both: #B497EA; --both-tint: #1F1830; --both-ink: #D4C2F6;
+    --risk: #F0857C; --risk-tint: #2C1513; --ok: #7FCB88; --ok-tint: #13251A; --keep: #94A4AB;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0E1417; --surface: #141C20; --ink: #E2E9EB; --muted: #9BAAB1; --line: #2A373D; --code-bg: #1A252A;
+  --alex: #EE8F55; --alex-tint: #2A1C13; --alex-ink: #F6B68E;
+  --joe: #45C0CC; --joe-tint: #0F2629; --joe-ink: #93DDE4;
+  --both: #B497EA; --both-tint: #1F1830; --both-ink: #D4C2F6;
+  --risk: #F0857C; --risk-tint: #2C1513; --ok: #7FCB88; --ok-tint: #13251A; --keep: #94A4AB;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.6 var(--body); padding-inline: 16px; padding-block: 0 64px; }
+a { color: var(--joe); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--joe); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--mono); }
+code { font-size: .86em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+kbd { font-size: .8em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: .05em .4em; background: var(--surface); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.05; margin: 0; }
+h2 { font-size: clamp(2rem, 4vw, 2.6rem); letter-spacing: .01em; text-transform: uppercase; }
+h3 { font-size: 1.35rem; letter-spacing: .02em; text-transform: uppercase; }
+p { margin: 0; max-width: 68ch; }
+ul, ol { margin: 0; padding-left: 1.3em; display: grid; gap: .35em; max-width: 72ch; }
+
+.shell { max-width: 1200px; margin: 0 auto; display: grid; gap: 40px; }
+@media (min-width: 1080px) { .shell { grid-template-columns: 210px minmax(0, 1fr); } }
+
+header.masthead { max-width: 1200px; margin: 0 auto 32px; padding-block: 40px 28px; display: grid; gap: 18px; border-bottom: 2px solid var(--ink); }
+.eyebrow { font: 600 .74rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(2.6rem, 7vw, 4.4rem); font-weight: 800; text-transform: uppercase; max-width: 16ch; }
+.lede { font-size: 1.12rem; max-width: 62ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.filter > span { font: 600 .74rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 999px; overflow: hidden; }
+.seg button { font: 700 .9rem/1 var(--body); padding: .55em 1em; background: transparent; color: var(--ink); border: 0; cursor: pointer; }
+.seg button + button { border-left: 1.5px solid var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.who { display: inline-flex; align-items: center; gap: .45em; font: 700 .72rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: .42em .7em; border-radius: 999px; white-space: nowrap; }
+.who::before { content: ""; width: .6em; height: .6em; border-radius: 50%; background: currentColor; }
+.who.alex { background: var(--alex-tint); color: var(--alex-ink); }
+.who.joe { background: var(--joe-tint); color: var(--joe-ink); }
+.who.both { background: var(--both-tint); color: var(--both-ink); }
+.who small { font-weight: 400; letter-spacing: .02em; text-transform: none; opacity: .85; }
+
+nav.toc { font-size: .92rem; }
+@media (min-width: 1080px) { nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; } }
+nav.toc details { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 14px; }
+nav.toc summary { font: 700 .78rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+nav.toc ol { list-style: none; padding: 0; margin-top: 10px; gap: 2px; }
+nav.toc a { display: block; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px; }
+nav.toc a:hover { background: var(--code-bg); }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.dot.alex { background: var(--alex); } .dot.joe { background: var(--joe); } .dot.both { background: var(--both); } .dot.keep { background: var(--keep); }
+
+main { display: grid; gap: 60px; min-width: 0; }
+section.chapter { display: grid; gap: 18px; scroll-margin-top: 20px; }
+.chapter > header { display: grid; gap: 10px; }
+.sub { display: grid; gap: 12px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 12px; align-content: start; }
+.task { border-radius: 12px; padding: 20px; display: grid; gap: 12px; border: 1px solid var(--line); scroll-margin-top: 20px; align-content: start; }
+.task[data-owner="alex"] { background: var(--alex-tint); border-color: color-mix(in srgb, var(--alex) 35%, transparent); }
+.task[data-owner="joe"] { background: var(--joe-tint); border-color: color-mix(in srgb, var(--joe) 35%, transparent); }
+.task[data-owner="both"] { background: var(--both-tint); border-color: color-mix(in srgb, var(--both) 35%, transparent); }
+.task-head { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.grid2 { display: grid; gap: 16px; }
+@media (min-width: 760px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+
+.rules { display: grid; gap: 12px; }
+@media (min-width: 820px) { .rules { grid-template-columns: repeat(3, 1fr); } }
+.rule { border: 2px solid var(--ink); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; background: var(--surface); }
+.rule b { font-family: var(--display); font-size: 1.35rem; text-transform: uppercase; letter-spacing: .02em; line-height: 1.1; }
+
+.source { display: grid; gap: 10px; align-content: start; border: 2px solid var(--ink); border-radius: 12px; padding: 18px; background: var(--surface); }
+.source .tag { font: 700 .72rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.source h3 { font-size: 1.6rem; }
+.source .becomes { border-top: 1px dashed var(--line); padding-top: 10px; font-weight: 700; }
+.arrow { font-family: var(--display); font-size: 1.1rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 700 .72rem/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code { white-space: nowrap; }
+
+pre.tree { margin: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; font-size: .84rem; line-height: 1.75; }
+.task pre.tree { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.tree .k { color: var(--keep); }
+.tree .n { color: var(--joe); font-weight: 600; }
+.tree .a { color: var(--alex); font-weight: 600; }
+.tree .c { color: var(--muted); font-style: italic; }
+.key { font-size: .88rem; color: var(--muted); }
+
+.milestones { display: grid; gap: 12px; }
+.ms { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 16px; }
+@media (min-width: 900px) { .ms { grid-template-columns: 160px 1fr 1fr; align-items: start; } }
+.ms-label { display: grid; gap: 4px; }
+.ms-label b { font-family: var(--display); font-size: 1.7rem; line-height: 1; }
+.ms-label span { font-weight: 700; }
+.lane { border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.lane.alex { background: var(--alex-tint); }
+.lane.joe { background: var(--joe-tint); }
+.lane p { font-size: .94rem; }
+.done { grid-column: 1 / -1; font-size: .9rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.done b { color: var(--ink); }
+
+details.code { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+details.code > summary { cursor: pointer; padding: 11px 16px; font-weight: 700; }
+details.code > summary code { background: transparent; padding: 0; }
+.codebox { position: relative; border-top: 1px solid var(--line); }
+.codebox pre { margin: 0; padding: 16px 18px; overflow-x: auto; background: var(--code-bg); font-size: .8rem; line-height: 1.6; tab-size: 4; }
+.copy { position: absolute; top: 8px; right: 8px; font: 700 .72rem/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: .55em .8em; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+pre.cmd { margin: 0; padding: 14px 16px; background: var(--ink); color: var(--paper); border-radius: 10px; overflow-x: auto; font-size: .82rem; line-height: 1.6; }
+
+.note { border-radius: 10px; padding: 12px 14px; font-size: .95rem; display: grid; gap: 6px; }
+.note.risk { background: var(--risk-tint); }
+.note.risk b:first-child { color: var(--risk); }
+.note.tip { background: color-mix(in srgb, var(--surface) 75%, transparent); border: 1px dashed var(--line); }
+
+ul.check { list-style: none; padding: 0; gap: 6px; }
+ul.check li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+ul.check input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ink); }
+ul.check label { cursor: pointer; }
+
+ul.dont { list-style: none; padding: 0; gap: 8px; max-width: none; }
+ul.dont li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: grid; gap: 2px; }
+ul.dont li b { color: var(--risk); }
+ul.dont li span { color: var(--muted); font-size: .92rem; }
+
+.regions { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.region { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px 10px; display: grid; gap: 2px; }
+.region b { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+.region span { font-weight: 700; }
+.region small { color: var(--muted); font-size: .8rem; }
+
+main[data-view="alex"] [data-owner="joe"], main[data-view="joe"] [data-owner="alex"] { display: none; }
+.filter-note { font-size: .88rem; color: var(--muted); }
+main[data-view="all"] .filter-note { display: none; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="eyebrow">Scrapsized · character pipeline · updated 28 Sep 2026</div>
+  <h1>Scrappy Modular Character Pipeline</h1>
+  <p class="lede">How we turn Scrappy into swappable bodies, clothes, masks and backpacks that change during gameplay. It builds on the two meshes we already have: Alex's stylized base male and the clothed Scrappy.</p>
+  <div class="controls">
+    <div class="legend" aria-label="Colour key">
+      <span class="who alex">Alex <small>Blender · Substance</small></span>
+      <span class="who joe">Joe <small>Unity · code</small></span>
+      <span class="who both">Both <small>together</small></span>
+    </div>
+    <div class="filter">
+      <span id="filter-label">Show tasks for</span>
+      <div class="seg" role="group" aria-labelledby="filter-label">
+        <button type="button" id="view-all" data-view="all" aria-pressed="true">Everyone</button>
+        <button type="button" id="view-alex" data-view="alex" aria-pressed="false">Alex</button>
+        <button type="button" id="view-joe" data-view="joe" aria-pressed="false">Joe</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <details id="toc-details" open>
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#start"><span class="dot keep"></span>The short version</a></li>
+        <li><a href="#fix"><span class="dot keep"></span>Fix these first</a></li>
+        <li><a href="#have"><span class="dot keep"></span>What we have</a></li>
+        <li><a href="#target"><span class="dot both"></span>What we're building</a></li>
+        <li><a href="#why"><span class="dot keep"></span>Why this approach</a></li>
+        <li><a href="#flow"><span class="dot both"></span>Steps M1–M5</a></li>
+        <li><a href="#masks"><span class="dot both"></span>Masks &amp; teams</a></li>
+        <li><a href="#blender"><span class="dot alex"></span>Alex: Blender</a></li>
+        <li><a href="#unity"><span class="dot joe"></span>Joe: Unity</a></li>
+        <li><a href="#physics"><span class="dot both"></span>Backpack motion</a></li>
+        <li><a href="#anim"><span class="dot both"></span>Animations</a></li>
+        <li><a href="#add"><span class="dot both"></span>Adding more later</a></li>
+        <li><a href="#dont"><span class="dot keep"></span>Don't do this</a></li>
+        <li><a href="#ref"><span class="dot keep"></span>Quick reference</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <main id="main" data-view="all">
+    <p class="filter-note">Showing one person's tasks. Shared sections stay visible.</p>
+
+    <!-- SHORT VERSION -->
+    <section class="chapter" id="start">
+      <header>
+        <h2>The short version</h2>
+        <p>Nothing gets re-modelled or re-rigged. The full body comes from the stylized base male, the clothes come from the clothed Scrappy, and every piece follows the one skeleton the game already animates.</p>
+      </header>
+      <div class="rules">
+        <div class="rule"><b>One skeleton, never changed</b><p>The 62-bone armature <code>Skeleton</code> inside <code>CM_Scrappy.fbx</code>. Every body and item is skinned to it in the same rest pose. Nobody renames, re-rolls or re-poses it.</p></div>
+        <div class="rule"><b>One piece, one FBX</b><p>Bodies, clothes and backpacks are skinned to the skeleton. Masks and hats are plain meshes that sit on a head socket, so they're quick to make in large numbers.</p></div>
+        <div class="rule"><b>Hide skin, don't delete it</b><p>The body stays whole. Each item says which body regions it covers, and the game hides those. It's what Alex did by hand on the clothed version, done per outfit.</p></div>
+      </div>
+    </section>
+
+    <!-- FIX FIRST -->
+    <section class="chapter" id="fix">
+      <header>
+        <h2>Fix these first</h2>
+        <p>Things in the project today that are wrong or out of date. Each is quick, and the rest of the guide assumes they're done.</p>
+      </header>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Who</th><th>Problem</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr data-owner="alex"><td><span class="who alex">Alex</span></td><td><code>Clothes_SetC</code> has a <b>roughness</b> map in URP's Metallic slot, imported as sRGB. URP reads metallic from red and smoothness from alpha, so Set C's shine is wrong. The other sets have no metal/smoothness map at all, so they render flat matte.</td><td>Re-export textures with Substance's <b>Unity Universal Render Pipeline (Metallic Standard)</b> preset. Joe unticks sRGB on the metallic/mask maps.</td></tr>
+            <tr data-owner="joe"><td><span class="who joe">Joe</span></td><td>The project skins characters <b>on the CPU</b> (Player Settings › Mesh Deformation = CPU). With 16 players each wearing several pieces, that cost lands on the main thread, which hurts most on laptops.</td><td>Set Mesh Deformation to <b>GPU (Batched)</b> and compare with the performance harness before and after.</td></tr>
+            <tr data-owner="alex"><td><span class="who alex">Alex</span></td><td>The base body is in an A-pose; the skeleton and clothed version are in a T-pose.</td><td>Raise the arms to the T-pose before weighting (<a href="#body">step 2</a>). Never change the skeleton to match the body.</td></tr>
+            <tr data-owner="alex"><td><span class="who alex">Alex</span></td><td>The body has no normal map, and <code>CM_Scrappy.fbx</code> was exported from Blender 3.2.</td><td>Add a body normal map when repainting. Use a current Blender LTS (4.5 or newer) for all new work.</td></tr>
+            <tr><td><span class="who both">Both</span></td><td>Leftovers: <code>CM_Scrappy.ini</code>, <code>.json</code>, <code>.iAvatar</code>, the <code>back/</code> copy, <code>BGMCharacter.fbx</code> and <code>ScrappyCharacter_Backup_Before_Changes.prefab</code>. Nothing live uses them.</td><td>Move them to <code>ArtSource/</code> once M1 works.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- WHAT WE HAVE -->
+    <section class="chapter" id="have">
+      <header>
+        <h2>What we have</h2>
+      </header>
+      <div class="grid2">
+        <div class="source">
+          <span class="tag"><code>BodyBaseMesh_01.fbx</code> · not in the project</span>
+          <h3>Stylized base male</h3>
+          <p>The bought base model, re-UV'd by Alex for more texture resolution, restyled to less realistic proportions, and re-textured. It's the full body, with nothing removed.</p>
+          <p><b>Not rigged:</b> one mesh, no skeleton, about 26k triangles (13,197 vertices), UV set <code>UV_Body</code>, three materials (<code>Body A</code>, <code>Body B</code>, <code>Set_C</code>).</p>
+          <p class="becomes"><span class="arrow">Becomes</span> <code>Body_M_01</code>, the body every outfit sits on. It goes into the Blender master file, not straight into Unity.</p>
+        </div>
+        <div class="source">
+          <span class="tag">In Unity · <code>Assets/Meshes/CM_Prefab_01/CM_Scrappy.fbx</code></span>
+          <h3>Clothed Scrappy</h3>
+          <p>Made from the base male, with the body removed under the clothes. One mesh (about 35k triangles) with five material slots, rigged with AccuRIG on a 62-bone skeleton called <code>Skeleton</code>.</p>
+          <p class="becomes"><span class="arrow">Gives us</span> the skeleton every piece uses, plus the clothes, mask and backpack to cut out.</p>
+        </div>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Clothed Scrappy slot</th><th>Unity material</th><th class="num">Polygons</th><th>Contains</th><th>Cut into</th></tr></thead>
+          <tbody>
+            <tr><td><code>Body_A.001</code></td><td>Body_SetA</td><td class="num">7,484</td><td>The skin that shows (face, hands…)</td><td>Not needed: replaced by <code>Body_M_01</code></td></tr>
+            <tr><td><code>Cothes_Set_A.001</code></td><td>Clothes_SetA</td><td class="num">1,490</td><td>Blue fabric, tan trims</td><td>Torso and legs pieces</td></tr>
+            <tr><td><code>CothesSet_B.001</code></td><td>Clothes_SetB</td><td class="num">2,335</td><td>Tan leather</td><td>Boots, gloves, belts</td></tr>
+            <tr><td><code>Cothes_Set_C.001</code></td><td>Clothes_SetC</td><td class="num">2,985</td><td>Skull mask, leather, metal</td><td><code>Mask_Skull01</code>, accessories</td></tr>
+            <tr><td><code>Cothes_Set_D.001</code></td><td>Backpack</td><td class="num">7,099</td><td>Pack, pouches, straps</td><td><code>Backpack_Scrap01</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>In Unity today</h3>
+        <ul>
+          <li><b>ScrappyCharacter.prefab</b> (<code>Assets/Resources/Prefabs/Characters/</code>) is the live character. <code>BGMCharacter</code> is its gameplay script. The <code>BGMCharacter.fbx</code> model is an old robot rig that only a backup prefab uses.</li>
+          <li>The prefab points at CM_Scrappy's bones <b>92 times</b> (FinalIK, Legs Animator, the hand, chest and foot sockets). That's why the skeleton can never change.</li>
+          <li>Animation is <b>Animancer</b> playing Humanoid clips through CM_Scrappy's avatar. Any body on the same skeleton gets every animation for free.</li>
+          <li>Bone names are Unity-style (<code>Hips</code>, <code>Spine</code>, <code>Left_UpperArm</code>…). The <code>CC_Base</code> files next to the FBX (<code>.ini</code>, <code>.json</code>, <code>.iAvatar</code>, <code>back/</code>) are old AccuRIG leftovers.</li>
+          <li>The player's name already replicates through <code>Player</code>. The outfit copies that pattern so it survives death and respawn.</li>
+          <li>No customisation exists yet.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- TARGET -->
+    <section class="chapter" id="target">
+      <header>
+        <h2>What we're building</h2>
+        <p>Same prefab, same gameplay. The only change is that the visible pieces become separate meshes under <code>Mesh</code>, all following the skeleton inside CM_Scrappy.</p>
+      </header>
+<pre class="tree" aria-label="Target hierarchy of ScrappyCharacter"><span class="k">ScrappyCharacter</span>           <span class="c">gameplay, networking               unchanged</span>
+└─ <span class="k">CharacterVisual</span>         <span class="c">Animator, Animancer, IK            unchanged</span>
+   ├─ <span class="n">CharacterAppearanceView</span> <span class="c">new · swaps the pieces</span>
+   └─ <span class="k">Mesh</span>
+      ├─ <span class="k">CM_Scrappy › Skeleton</span> <span class="c">the one skeleton · old combined mesh switched off</span>
+      │  └─ <span class="k">… › Head</span>
+      │     └─ <span class="n">Socket_Head</span>  <span class="c">new · masks and hats sit here</span>
+      │        ├─ <span class="a">Mask</span>     <span class="c">team mask (plain mesh)</span>
+      │        └─ <span class="a">Headwear</span> <span class="c">hats (plain mesh)</span>
+      ├─ <span class="a">Body</span>       <span class="c">Body_M_01 (from the base male) · skin tone tint</span>
+      ├─ <span class="a">Torso</span>      <span class="c">shirt, jacket…        skinned</span>
+      ├─ <span class="a">Legs</span>       <span class="c">trousers…             skinned</span>
+      ├─ <span class="a">Feet</span>       <span class="c">boots…                skinned</span>
+      ├─ <span class="a">Hands</span>      <span class="c">gloves (optional)     skinned</span>
+      ├─ <span class="a">Backpack</span>   <span class="c">pack + its own swing bones</span>
+      └─ <span class="a">Accessory</span>  <span class="c">skinned, or on a socket</span></pre>
+      <p class="key"><span style="color:var(--keep)">Grey</span> already exists · <span style="color:var(--joe)">teal</span> new code (Joe) · <span style="color:var(--alex)">rust</span> meshes from Alex</p>
+      <div class="grid2">
+        <div class="card">
+          <h3>Male ↔ female</h3>
+          <p>Both bodies share the skeleton and the avatar, so animations, IK and hit reactions just work. Switching body swaps the Body piece, then each item switches to its female fit, stays on if it fits anyone, or falls back to that slot's default until you switch back.</p>
+        </div>
+        <div class="card">
+          <h3>Hiding skin</h3>
+          <p>The body is split into 12 regions (Chest, Thighs, Feet…). A shirt says "I cover Chest, Stomach, UpperArms" and the body hides those while it's worn. The same regions exist on every body, so one item works on all of them.</p>
+        </div>
+        <div class="card">
+          <h3>Team masks</h3>
+          <p>Every player on a team wears the team's mask. Each team entry in the gamemode names its mask, and every machine already knows each character's team, so masks need no networking of their own.</p>
+        </div>
+        <div class="card">
+          <h3>Skin tone</h3>
+          <p>One body texture, tinted in the shader from a palette of tones. The player's tone is one number in their saved outfit. Eyes, teeth and lips are masked out so they keep their colour.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY -->
+    <section class="chapter" id="why">
+      <header>
+        <h2>Why this approach</h2>
+        <p>Checked against how we work: lots of masks, swappable clothes and bodies, skin tones, 16 players, laptops on the Performant setting, and a character whose IK and animation already work.</p>
+      </header>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Option</th><th>Verdict</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td><b>Skinned pieces on one shared skeleton</b></td><td>Use for bodies, clothes, backpacks</td><td>Keeps Animancer, FinalIK, Legs Animator and all 92 bone references untouched. Alex keeps modelling and weighting normally in Blender. It's the standard way multiplayer games do outfits.</td></tr>
+            <tr><td><b>Plain meshes on a head socket</b></td><td>Use for masks and hats</td><td>No weights, no skeleton in the file, cheapest to draw. A new mask takes minutes to add, and the same prefab can be shown on a team-select screen or a banner.</td></tr>
+            <tr><td>Character-creator frameworks (UMA and similar)</td><td>No</td><td>They take over the rig, materials and prefab, and would fight the Animancer and IK setup that already works.</td></tr>
+            <tr><td>One pre-made mesh per outfit</td><td>No</td><td>Every mask times every outfit times every body multiplies into hundreds of files.</td></tr>
+            <tr><td>Deleting skin under clothes per outfit</td><td>No</td><td>Only works for one outfit. Region hiding does the same job for any combination.</td></tr>
+            <tr><td>Merging each character's pieces into one mesh at runtime</td><td>Later, if needed</td><td>Saves draw calls with many players. Mesh Baker is already in the project if the profiler asks for it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FLOW -->
+    <section class="chapter" id="flow">
+      <header>
+        <h2>Steps M1–M5</h2>
+        <p>Each step is playable on its own. Finish one before starting the next.</p>
+      </header>
+      <div class="milestones">
+        <div class="ms">
+          <div class="ms-label"><b>M1</b><span>Body + one item</span></div>
+          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p>Master file with both meshes. Raise the base body's arms into the T-pose and weight it to <code>Skeleton</code>. Export <code>Body_M_01</code> and one garment.</p></div>
+          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p>Import rules, the <a href="#ghost">ghost test</a>, then put both pieces into the prefab and switch the old combined mesh off.</p></div>
+          <p class="done"><b>Done when</b> the character runs, jumps and aims with the new pieces and deforms like before.</p>
+        </div>
+        <div class="ms">
+          <div class="ms-label"><b>M2</b><span>Everything swaps</span></div>
+          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p>Cut the rest of the clothes and the backpack out. Export the skull mask as the first socket item. Mark the body regions and add the skin tint mask.</p></div>
+          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p>Item and body assets, <code>Socket_Head</code>, <code>CharacterAppearanceView</code>, the body shader (region hiding and skin tone), a debug menu to cycle slots.</p></div>
+          <p class="done"><b>Done when</b> every slot and skin tone changes in play mode, the skull mask sits exactly where it did, and no skin shows through.</p>
+        </div>
+        <div class="ms">
+          <div class="ms-label"><b>M3</b><span>Multiplayer</span></div>
+          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p>One mask per team. Item icons, if the UI needs them.</p></div>
+          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p>Team masks from the gamemode's team list. Replicate the rest of the outfit through <code>Player</code>, save it locally, apply it on spawn.</p></div>
+          <p class="done"><b>Done when</b> each team wears its mask, and players see each other's outfits and skin tones, including after dying.</p>
+        </div>
+        <div class="ms">
+          <div class="ms-label"><b>M4</b><span>Backpack motion</span></div>
+          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p>Add swing bones to the backpack.</p></div>
+          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p>Spring component and body colliders.</p></div>
+          <p class="done"><b>Done when</b> the pack sways and bounces without going through the back.</p>
+        </div>
+        <div class="ms">
+          <div class="ms-label"><b>M5</b><span>Female body</span></div>
+          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p>Female body on the same skeleton; female fits of items that need them.</p></div>
+          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p>Female body asset, fallback rules, body choice in the UI.</p></div>
+          <p class="done"><b>Done when</b> switching body mid-game keeps animation, IK and every item that fits.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MASKS -->
+    <section class="chapter" id="masks">
+      <header>
+        <h2>Masks &amp; teams</h2>
+        <p>Masks are the main thing players customise and how teams recognise each other, so they get the simplest pipeline: a plain mesh, modelled on the head, dropped onto a socket.</p>
+      </header>
+      <div class="grid2">
+        <div class="task" data-owner="alex">
+          <div class="task-head"><span class="who alex">Alex</span><h3>Making a mask</h3></div>
+          <ol>
+            <li>In the master file, model it on <code>Body_M_01</code>'s head in rest pose and put it in the <code>Mask</code> collection.</li>
+            <li>No Armature modifier, no weights. Leave it exactly where it sits on the head and apply scale.</li>
+            <li>Check it also fits <code>Body_F_01</code> once that exists: the whole team shares one mask.</li>
+            <li>Up to 1.5k triangles and one 1024 texture (512 for simple ones). Several masks can share one texture sheet if that's quicker to paint.</li>
+            <li>Optional team colour: in the BaseMap alpha, paint white where the team colour should show.</li>
+            <li>Run the export. It becomes <code>SM_Mask_&lt;Name&gt;.fbx</code>.</li>
+          </ol>
+        </div>
+        <div class="task" data-owner="joe">
+          <div class="task-head"><span class="who joe">Joe</span><h3>Socket and team setup</h3></div>
+          <ol>
+            <li><b>Once:</b> in ScrappyCharacter, create an empty as a child of <code>CM_Scrappy</code> with zero position and rotation, then drag it onto the <code>Head</code> bone (Unity keeps its world position). Name it <code>Socket_Head</code>. It now carries the model's origin with the head, so a mask exported in place lands exactly where Alex modelled it.</li>
+            <li><b>Each mask:</b> a <code>WardrobeItem</code> (slot Mask, hides Face, plus Head for full helmets) pointing at the <code>SM_</code> prefab. Equipping means instantiating it under <code>Socket_Head</code> at zero.</li>
+            <li><b>Teams:</b> add <code>Mask</code> and <code>Colour</code> to <code>TeamDefinition</code> in <code>BasicGamemode.cs</code>. At start the gamemode registers them in a small <code>TeamMasks</code> lookup in the character assembly (the character code can't see the gamemode). <code>BGMCharacter.OnTeamChanged</code>, empty today, re-applies the outfit.</li>
+            <li>The character wears its team's mask while it has one, otherwise the player's own pick. <code>Team</code> is already a SyncVar, so there's nothing new to send.</li>
+            <li>If teams later choose masks in a lobby, move the choice into a synced list on the gamemode. Nothing else changes.</li>
+          </ol>
+          <details class="code">
+            <summary><code>TeamDefinition</code> and <code>TeamMasks</code></summary>
+            <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>// BasicGamemode.cs (Scrapsized.Gamemode)
+[Serializable]
+public class TeamDefinition
+{
+    public string TeamName;
+    public SpawnGroup SpawnGroup;
+    public WardrobeItem Mask;           // everyone on this team wears it
+    public Color Colour = Color.white;  // tints the mask's team-colour areas
+}
+// In the gamemode's start-up on every peer:
+//     TeamMasks.Register(Teams.Select(t =&gt; (t.Mask, t.Colour)).ToArray());
+
+// TeamMasks.cs (Scrapsized.Characters, next to WardrobeItem)
+/// &lt;summary&gt;Team id -&gt; mask. Filled by the gamemode, read by the character, which can't see the gamemode.&lt;/summary&gt;
+public static class TeamMasks
+{
+    static (WardrobeItem Mask, Color Colour)[] s_Teams = System.Array.Empty&lt;(WardrobeItem, Color)&gt;();
+
+    public static void Register((WardrobeItem Mask, Color Colour)[] teams) =&gt; s_Teams = teams;
+
+    public static bool TryGet(int team, out WardrobeItem mask, out Color colour)
+    {
+        bool known = team &gt;= 0 &amp;&amp; team &lt; s_Teams.Length &amp;&amp; s_Teams[team].Mask != null;
+        mask = known ? s_Teams[team].Mask : null;
+        colour = known ? s_Teams[team].Colour : Color.white;
+        return known;
+    }
+}</code></pre></div>
+          </details>
+        </div>
+      </div>
+      <div class="note tip"><b>First test.</b> The skull mask cut from the clothed Scrappy, exported this way, must sit exactly where it sat on the old combined mesh. That proves the socket once, for every mask after it.</div>
+    </section>
+
+    <!-- BLENDER -->
+    <section class="chapter" id="blender">
+      <header>
+        <div><span class="who alex">Alex</span></div>
+        <h2>Alex: Blender</h2>
+        <p>Everything lives in one file, <code>ArtSource/Characters/Scrappy/Scrappy_Master.blend</code>, at the repository root next to <code>Assets/</code>. Keep <code>.blend</code> files out of <code>Assets/</code>: Unity tries to import them.</p>
+      </header>
+
+      <div class="task" data-owner="alex" id="master">
+        <div class="task-head"><span class="who alex">Alex</span><h3>1 · Set up the master file</h3></div>
+        <ol>
+          <li>Start from the <code>.blend</code> that exported <code>CM_Scrappy.fbx</code> (mesh <code>Clothing.002</code>, armature <code>Skeleton</code>). If that's gone, import the FBX with <b>Automatic Bone Orientation off</b>.</li>
+          <li>File › Import › FBX <code>BodyBaseMesh_01.fbx</code> with default settings. It lands at the same scale and facing as the clothed version: the heads line up exactly.</li>
+          <li>Make collections: <code>Bodies</code>, <code>Torso</code>, <code>Legs</code>, <code>Feet</code>, <code>Hands</code>, <code>Mask</code>, <code>Headwear</code>, <code>Backpack</code>, <code>Accessories</code>, and <code>_Reference</code> holding an untouched copy of <code>Clothing.002</code>.</li>
+          <li>Leave <code>Skeleton</code> alone from here on: same names, same parents, same rest pose, object at the origin with scale 1.</li>
+        </ol>
+      </div>
+
+      <div class="task" data-owner="alex" id="body">
+        <div class="task-head"><span class="who alex">Alex</span><h3>2 · Put the base body in the T-pose, then weight it</h3></div>
+        <p>Measured from the two files: the head, torso and legs of both versions already line up (the clothes sit 2–4 cm off the body). <b>Only the arms differ.</b> The base body is in an A-pose, but the skeleton and the clothed version are in a T-pose. The body has to match the skeleton, never the other way round.</p>
+        <ol>
+          <li>Rename the base body <code>Body_M_01</code> and move it to <code>Bodies</code>.</li>
+          <li><b>Bring the clothes down to the body:</b> select <code>Skeleton</code>, Pose Mode, and rotate the shoulder, arm, hand and finger bones until the clothed version's hands and sleeves sit on the base body's arms. The clothed hands are the base body's hands, so they should fit exactly. This is a temporary pose. Don't apply it.</li>
+          <li>On <code>Body_M_01</code> add a <b>Surface Deform</b> modifier, target = the <code>_Reference</code> clothed mesh, and press Bind.</li>
+          <li>On <code>Skeleton</code>: Pose › Clear Transform › All. The clothes go back to the T-pose and carry the body's arms with them. Apply the Surface Deform on <code>Body_M_01</code>.</li>
+          <li><b>Copy the weights:</b> add a Data Transfer modifier to <code>Body_M_01</code>, source = the <code>_Reference</code> clothed mesh, tick Vertex Data › Vertex Groups, mapping Nearest Face Interpolated, press Generate Data Layers, apply. Covered areas take the weights of the clothes on top of them; exposed skin gets exactly its old weights.</li>
+          <li>Add an Armature modifier pointing at <code>Skeleton</code>. Weights › Limit Total (4), Normalize All. Pose-test (arms up, knees bent, spine twist) and fix shoulders, armpits, elbows, hips and knees.</li>
+        </ol>
+        <p><b>Check:</b> with the skeleton in rest pose, the clothed version's face and hands sit exactly on <code>Body_M_01</code> again.</p>
+        <p><b>Materials:</b> the base body has three (<code>Body A</code>, <code>Body B</code>, <code>Set_C</code>). Keep them. The clothed version only ever used Body A, so check that Body B's texture is finished in the areas the clothes used to hide. <b>Size:</b> 26k triangles. That's fine to start with; if laptops struggle later, a 15k version is the first saving.</p>
+      </div>
+
+      <div class="task" data-owner="alex" id="split">
+        <div class="task-head"><span class="who alex">Alex</span><h3>3 · Cut the items out of the clothed version</h3></div>
+        <ol>
+          <li>Duplicate <code>Clothing.002</code>. On the copy: Edit Mode, <kbd>P</kbd> › <b>By Material</b>. Weights, UVs and materials all survive.</li>
+          <li>Delete the <code>Body_A</code> piece. <code>Body_M_01</code> replaces it.</li>
+          <li>Split each set into items: hover a part, <kbd>L</kbd> to select it, <kbd>P</kbd> › <b>Selection</b>. Name it using the <a href="#ref">naming pattern</a> and drop it in its slot collection.</li>
+          <li>Items cut from the same set keep that set's material. Nothing needs re-texturing to start.</li>
+          <li>Weights › Limit Total (4), Normalize All on each item.</li>
+          <li><b>Masks and hats</b> (like the skull mask in Set C): delete their Armature modifier and vertex groups and move them to <code>Mask</code> or <code>Headwear</code>. They export as plain meshes, in place. See <a href="#masks">Masks &amp; teams</a>.</li>
+        </ol>
+      </div>
+
+      <div class="task" data-owner="alex" id="regions">
+        <div class="task-head"><span class="who alex">Alex</span><h3>4 · Mark body regions</h3></div>
+        <p>On each body, add vertex groups named <code>Region_&lt;Name&gt;</code> and assign faces at weight 1. The export script turns them into data the game reads. They don't affect skinning.</p>
+        <div class="regions">
+          <div class="region"><b>0</b><span>Head</span><small>hats</small></div>
+          <div class="region"><b>1</b><span>Face</span><small>masks</small></div>
+          <div class="region"><b>2</b><span>Neck</span><small>scarves, collars</small></div>
+          <div class="region"><b>3</b><span>Chest</span><small>shirts</small></div>
+          <div class="region"><b>4</b><span>Stomach</span><small>shirts</small></div>
+          <div class="region"><b>5</b><span>UpperArms</span><small>sleeves</small></div>
+          <div class="region"><b>6</b><span>Forearms</span><small>long sleeves</small></div>
+          <div class="region"><b>7</b><span>Hands</span><small>gloves</small></div>
+          <div class="region"><b>8</b><span>Hips</span><small>trousers</small></div>
+          <div class="region"><b>9</b><span>Thighs</span><small>trousers</small></div>
+          <div class="region"><b>10</b><span>Shins</span><small>trousers, tall boots</small></div>
+          <div class="region"><b>11</b><span>Feet</span><small>shoes, boots</small></div>
+        </div>
+        <p>Where you deleted body on the clothed version is exactly what should be covered. Put region borders slightly inside where clothes end, so no gap shows at a cuff.</p>
+      </div>
+
+      <div class="task" data-owner="alex" id="backpack-bones">
+        <div class="task-head"><span class="who alex">Alex</span><h3>5 · Backpack swing bones</h3></div>
+        <p>Extra bones that belong to the backpack only. Add them to <code>Skeleton</code> under <code>UpperChest</code>, all with <b>Deform</b> ticked.</p>
+<pre class="tree" aria-label="Backpack bones"><span class="k">UpperChest</span>
+└─ <span class="a">Backpack_Main</span>          <span class="c">whole pack, weight 1.0</span>
+   ├─ <span class="a">Backpack_Main_Tip</span>   <span class="c">bottom of the pack, no weights</span>
+   └─ <span class="a">Backpack_Flap</span>       <span class="c">the flap</span>
+      └─ <span class="a">Backpack_Flap_Tip</span> <span class="c">no weights</span></pre>
+        <ul>
+          <li>Straps that wrap the body stay weighted to <code>UpperChest</code> and the shoulders, blending into <code>Backpack_Main</code> near the pack.</li>
+          <li>A dangling strap gets its own chain: <code>Backpack_StrapL_01 › _02 › _Tip</code>.</li>
+          <li>The same idea works later for jacket hems, scarves or pouches.</li>
+        </ul>
+      </div>
+
+      <div class="task" data-owner="alex" id="textures">
+        <div class="task-head"><span class="who alex">Alex</span><h3>6 · Textures</h3></div>
+        <ul>
+          <li><b>Skin tone:</b> paint the body's skin in a light, fairly neutral tone (the game can darken it, not lighten it), and put a <b>tint mask in the BaseMap alpha</b> on every body texture: white where skin tone applies, black for eyes, teeth and anything else that keeps its colour.</li>
+          <li>Substance Painter export preset <b>Unity Universal Render Pipeline (Metallic Standard)</b>.</li>
+          <li>One UV set per item, its own 0–1 space.</li>
+          <li>Sizes: body, torso, legs 2048; feet, hands, mask, hats 1024; small bits 512. Laptops on the Performant setting show textures at half size anyway.</li>
+          <li>Triangle budgets: torso 5k, legs 4k, backpack 4k (today's is about 7k), feet 2k, hat 2k, mask 1.5k.</li>
+        </ul>
+      </div>
+
+      <div class="task" data-owner="alex" id="export">
+        <div class="task-head"><span class="who alex">Alex</span><h3>7 · Export everything with one command</h3></div>
+        <p>The script exports every mesh in the slot collections straight into the Unity project with identical settings every time: skinned pieces as <code>SK_&lt;name&gt;.fbx</code> (with the skeleton), masks and hats as <code>SM_&lt;name&gt;.fbx</code> (mesh only, in place). Anything named with a leading <code>_</code> is skipped. Run it from the repository root:</p>
+<pre class="cmd">"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" -b ArtSource/Characters/Scrappy/Scrappy_Master.blend --python ArtSource/Tools/export_scrappy_parts.py -- .</pre>
+        <p>Change the Blender path to your version. Joe presses <kbd>Ctrl R</kbd> in Unity to pick the files up.</p>
+        <details class="code">
+          <summary><code>export_scrappy_parts.py</code> (save in <code>ArtSource/Tools/</code>)</summary>
+          <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>"""Exports every body and wardrobe piece in Scrappy_Master.blend as its own FBX.
+
+blender -b Scrappy_Master.blend --python export_scrappy_parts.py -- &lt;unity project folder&gt;
+"""
+import os
+import sys
+import bpy
+
+ARMATURE = "Skeleton"                        # the master armature. Never rename.
+OUT = "Assets/Art/Characters/Scrappy"
+FOLDERS = {                                  # Blender collection -&gt; Unity folder
+    "Bodies": "Bodies",
+    "Torso": "Wardrobe/Torso", "Legs": "Wardrobe/Legs", "Feet": "Wardrobe/Feet",
+    "Hands": "Wardrobe/Hands", "Mask": "Wardrobe/Mask", "Headwear": "Wardrobe/Headwear",
+    "Backpack": "Wardrobe/Backpack", "Accessories": "Wardrobe/Accessories",
+}
+SOCKET = {"Mask", "Headwear"}                # plain meshes on Socket_Head, exported in place
+REGIONS = ["Head", "Face", "Neck", "Chest", "Stomach", "UpperArms",
+           "Forearms", "Hands", "Hips", "Thighs", "Shins", "Feet"]
+
+project = os.path.abspath(sys.argv[sys.argv.index("--") + 1])
+armature = bpy.data.objects[ARMATURE]
+
+
+def bake_regions(obj):
+    """Bodies: Region_* vertex groups -&gt; second UV map 'Regions' (u = region index, one value per face)."""
+    index_of = {g.index: REGIONS.index(g.name[7:]) for g in obj.vertex_groups
+                if g.name.startswith("Region_") and g.name[7:] in REGIONS}
+    if not index_of:
+        return
+    mesh = obj.data
+    uv = mesh.uv_layers.get("Regions") or mesh.uv_layers.new(name="Regions")
+    region_of = {}
+    for v in mesh.vertices:
+        for g in v.groups:
+            if g.group in index_of and g.weight &gt; 0.5:
+                region_of[v.index] = index_of[g.group]
+    for poly in mesh.polygons:
+        votes = {}
+        for vi in poly.vertices:
+            if vi in region_of:
+                votes[region_of[vi]] = votes.get(region_of[vi], 0) + 1
+        region = max(votes, key=votes.get) if votes else 0
+        for li in poly.loop_indices:
+            uv.data[li].uv = (region + 0.5, 0.0)
+
+
+def export(objects, path):
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in objects:
+        o.hide_set(False)
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objects[0]
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    bpy.ops.export_scene.fbx(
+        filepath=path, use_selection=True, object_types={"ARMATURE", "MESH"},
+        apply_unit_scale=True, apply_scale_options="FBX_SCALE_UNITS",
+        axis_forward="-Z", axis_up="Y",
+        use_mesh_modifiers=True, mesh_smooth_type="FACE",
+        add_leaf_bones=False, use_armature_deform_only=True,
+        primary_bone_axis="Y", secondary_bone_axis="X",
+        bake_anim=False, path_mode="STRIP", embed_textures=False)
+    print("Exported", path)
+
+
+for collection, folder in FOLDERS.items():
+    coll = bpy.data.collections.get(collection)
+    if coll is None:
+        continue
+    for obj in coll.all_objects:
+        if obj.type != "MESH" or obj.name.startswith("_"):
+            continue
+        skinned = any(m.type == "ARMATURE" for m in obj.modifiers)
+        if collection in SOCKET:
+            if skinned:
+                print("SKIPPED (masks and hats must not be skinned):", obj.name)
+                continue
+            export([obj], os.path.join(project, OUT, folder, "SM_" + obj.name + ".fbx"))
+            continue
+        if not skinned:
+            print("SKIPPED (not skinned to Skeleton):", obj.name)
+            continue
+        if collection == "Bodies":
+            bake_regions(obj)
+        export([obj, armature], os.path.join(project, OUT, folder, "SK_" + obj.name + ".fbx"))</code></pre></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- UNITY -->
+    <section class="chapter" id="unity">
+      <header>
+        <div><span class="who joe">Joe</span></div>
+        <h2>Joe: Unity</h2>
+        <p>One new component, <code>CharacterAppearanceView</code> on <code>CharacterVisual</code>, owns every visible piece. The Animator, Animancer states, FinalIK and Legs Animator are not touched.</p>
+      </header>
+
+      <div class="task" data-owner="joe" id="import">
+        <div class="task-head"><span class="who joe">Joe</span><h3>1 · Import rules</h3></div>
+        <p>Files landing in <code>Assets/Art/Characters/Scrappy/</code> get the right settings automatically on first import. <code>SK_</code> pieces: Humanoid with the avatar copied from CM_Scrappy (which also flags a renamed bone). <code>SM_</code> masks and hats: plain meshes. No materials, no lightmap UVs.</p>
+        <details class="code">
+          <summary><code>ScrappyCharacterImportRules.cs</code> (editor assembly)</summary>
+          <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>using System.IO;
+using System.Linq;
+using UnityEditor;
+using UnityEngine;
+
+namespace Scrapsized.Editor
+{
+    /// &lt;summary&gt;
+    /// First-import settings for Scrappy bodies, wardrobe pieces and animations, chosen by folder so nobody has
+    /// to remember them. Pieces copy the master avatar from CM_Scrappy, which fails loudly on a renamed bone.
+    /// &lt;/summary&gt;
+    sealed class ScrappyCharacterImportRules : AssetPostprocessor
+    {
+        const string Root = "Assets/Art/Characters/Scrappy/";
+        const string MasterRig = "Assets/Meshes/CM_Prefab_01/CM_Scrappy.fbx";
+
+        void OnPreprocessModel()
+        {
+            if (!assetPath.StartsWith(Root)) return;
+            var importer = (ModelImporter)assetImporter;
+            if (!importer.importSettingsMissing) return; // only the first import; later tweaks stand
+
+            string file = Path.GetFileName(assetPath);
+            bool animation = assetPath.StartsWith(Root + "Animations/");
+            bool ownRig = !animation || file.StartsWith("A_Scrappy_");
+
+            importer.importAnimation = animation;
+            importer.materialImportMode = ModelImporterMaterialImportMode.None; // materials live on the item asset
+            importer.generateSecondaryUV = false;                               // UV1 carries body regions
+            importer.isReadable = false;
+
+            if (file.StartsWith("SM_"))
+            {
+                importer.animationType = ModelImporterAnimationType.None;       // masks and hats: plain meshes
+                return;
+            }
+
+            importer.animationType = ModelImporterAnimationType.Human;
+            importer.optimizeGameObjects = false;
+            importer.skinWeights = ModelImporterSkinWeights.Standard;           // 4 bones per vertex
+
+            if (ownRig)
+            {
+                importer.avatarSetup = ModelImporterAvatarSetup.CopyFromOther;
+                importer.sourceAvatar = AssetDatabase.LoadAllAssetsAtPath(MasterRig).OfType&lt;Avatar&gt;().FirstOrDefault();
+            }
+            else
+            {
+                importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel; // other rigs retarget via Humanoid
+            }
+        }
+    }
+}</code></pre></div>
+        </details>
+      </div>
+
+      <div class="task" data-owner="both" id="ghost">
+        <div class="task-head"><span class="who both">Both</span><h3>2 · Ghost test (M1, and after any export change)</h3></div>
+        <ol>
+          <li>In an empty scene, drop <code>CM_Scrappy.fbx</code> and <code>SK_Body_M_01.fbx</code> at the origin.</li>
+          <li>The visible skin of the clothed version (face, hands) must sit exactly on the new body: no offset, scale or rotation.</li>
+          <li>Compare <code>Head</code> and <code>Left_Hand</code> in both skeletons: same local position and rotation.</li>
+          <li>Put the body into ScrappyCharacter, play, run, jump, aim. It must bend like the old mesh.</li>
+        </ol>
+        <div class="note risk"><b>If it fails</b><p>The export settings don't match the original. Alex adjusts them once in the script, or re-exports <code>CM_Scrappy.fbx</code> itself from the master file with exactly the same bone names and hierarchy (keep a backup, then Joe checks the prefab for missing references).</p></div>
+      </div>
+
+      <div class="task" data-owner="joe" id="data">
+        <div class="task-head"><span class="who joe">Joe</span><h3>3 · Item and body assets</h3></div>
+        <ul>
+          <li><b>BodyDefinition</b>: id, name, fit tag (<code>M</code>, <code>F</code>), body prefab.</li>
+          <li><b>WardrobeItem</b>: id, slot, name, icon, regions it hides, one prefab per fit (<code>U</code> = fits any body).</li>
+          <li><b>WardrobeCatalog</b>: the list of everything, each slot's default per body, and a <code>Sanitise()</code> the server uses.</li>
+        </ul>
+        <details class="code">
+          <summary><code>WardrobeItem.cs</code>, <code>BodyDefinition.cs</code></summary>
+          <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>public enum WardrobeSlot : byte { Torso, Legs, Feet, Hands, Mask, Headwear, Backpack, Accessory }
+
+/// &lt;summary&gt;Body regions a worn item covers. Same bit per region on every body.&lt;/summary&gt;
+[System.Flags]
+public enum BodyRegions
+{
+    None = 0, Head = 1 &lt;&lt; 0, Face = 1 &lt;&lt; 1, Neck = 1 &lt;&lt; 2, Chest = 1 &lt;&lt; 3, Stomach = 1 &lt;&lt; 4, UpperArms = 1 &lt;&lt; 5,
+    Forearms = 1 &lt;&lt; 6, Hands = 1 &lt;&lt; 7, Hips = 1 &lt;&lt; 8, Thighs = 1 &lt;&lt; 9, Shins = 1 &lt;&lt; 10, Feet = 1 &lt;&lt; 11,
+}
+
+[CreateAssetMenu(menuName = "Scrapsized/Characters/Body")]
+public sealed class BodyDefinition : ScriptableObject
+{
+    public byte Id;                 // network id. Never reuse a retired one.
+    public string DisplayName;
+    public string FitTag = "M";     // matches WardrobeItem variants
+    public GameObject Prefab;       // SK_Body_*.fbx
+}
+
+[CreateAssetMenu(menuName = "Scrapsized/Characters/Wardrobe Item")]
+public sealed class WardrobeItem : ScriptableObject
+{
+    public ushort Id;               // network id. Never reuse a retired one.
+    public WardrobeSlot Slot;
+    public string DisplayName;
+    public Sprite Icon;
+    public BodyRegions Hides;
+    public Variant[] Variants;
+
+    [System.Serializable]
+    public sealed class Variant
+    {
+        public string FitTag = "U"; // "U" fits every body
+        public GameObject Prefab;   // SK_*.fbx
+        public Material[] Materials;
+    }
+
+    /// &lt;summary&gt;The exact fit for this body, else the unisex one, else null (not wearable on it).&lt;/summary&gt;
+    public Variant VariantFor(BodyDefinition body)
+    {
+        foreach (var v in Variants) if (v.FitTag == body.FitTag) return v;
+        foreach (var v in Variants) if (v.FitTag == "U") return v;
+        return null;
+    }
+}</code></pre></div>
+        </details>
+      </div>
+
+      <div class="task" data-owner="joe" id="equip">
+        <div class="task-head"><span class="who joe">Joe</span><h3>4 · Putting an item on</h3></div>
+        <p><b>Masks and hats</b> (<code>SM_</code>): instantiate under <code>Socket_Head</code> at zero position and rotation, assign materials, update hidden regions. Done.</p>
+        <p><b>Everything else</b> (<code>SK_</code>):</p>
+        <ol>
+          <li>Pick the item's prefab for the current body (<code>VariantFor</code>).</li>
+          <li>Instantiate it under <code>Mesh</code>, so the swim tilt applies to it.</li>
+          <li><b>Rebind:</b> point each SkinnedMeshRenderer's bones at the character's own bones with the same names. Bones the character doesn't have (backpack swing bones) move under the character's matching parent bone.</li>
+          <li>Delete the piece's own copy of <code>Skeleton</code>, set its layer to <code>Character</code>, assign its materials.</li>
+          <li>Remove whatever was in that slot (and any swing bones it brought).</li>
+          <li>Update the body's hidden regions: everything worn, combined.</li>
+        </ol>
+        <details class="code">
+          <summary><code>SkeletonBinder.cs</code> (the rebind step)</summary>
+          <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>using System.Collections.Generic;
+using UnityEngine;
+
+/// &lt;summary&gt;
+/// Moves a wardrobe piece onto the character's master skeleton by bone name. Item bones (backpack flap, straps)
+/// are re-homed under the master bone that matches their original parent, keeping their local rest offset.
+/// &lt;/summary&gt;
+public static class SkeletonBinder
+{
+    public static Dictionary&lt;string, Transform&gt; Index(Transform skeletonRoot)
+    {
+        var bones = new Dictionary&lt;string, Transform&gt;();
+        foreach (var t in skeletonRoot.GetComponentsInChildren&lt;Transform&gt;(true)) bones[t.name] = t;
+        return bones;
+    }
+
+    public static void Bind(SkinnedMeshRenderer piece, Dictionary&lt;string, Transform&gt; master)
+    {
+        Transform[] bones = piece.bones;
+        for (int i = 0; i &lt; bones.Length; i++)
+        {
+            Transform own = bones[i];
+            if (own == null) continue;
+            if (master.TryGetValue(own.name, out Transform shared)) { bones[i] = shared; continue; }
+
+            // Item bone. Only the top of each chain moves; its children come with it.
+            if (own.parent != null &amp;&amp; master.TryGetValue(own.parent.name, out Transform newParent))
+                own.SetParent(newParent, false);
+        }
+        piece.bones = bones;
+        if (piece.rootBone != null &amp;&amp; master.TryGetValue(piece.rootBone.name, out Transform root))
+            piece.rootBone = root;
+    }
+}</code></pre></div>
+        </details>
+      </div>
+
+      <div class="task" data-owner="joe" id="bodyswap">
+        <div class="task-head"><span class="who joe">Joe</span><h3>5 · Switching body</h3></div>
+        <ol>
+          <li>Swap the Body piece, exactly like an item.</li>
+          <li>For each worn item: same prefab for the new body → leave it; a different fit → swap it; no fit → wear that slot's default, but remember the choice so switching back restores it.</li>
+          <li>Apply the hidden regions to the new body.</li>
+        </ol>
+        <p>No avatar change, no <code>Animator.Rebind()</code>, no IK reset: the skeleton is the same objects before and after.</p>
+      </div>
+
+      <div class="task" data-owner="joe" id="masking">
+        <div class="task-head"><span class="who joe">Joe</span><h3>6 · Body shader: hidden skin and skin tone</h3></div>
+        <p>The export script stores each body face's region number in UV1. One Lit Shader Graph does both jobs: it collapses faces in hidden regions, and tints skin by the tone the player picked. Collapsing in the vertex stage keeps the body fully opaque, so there's no alpha clipping cost, which matters on laptops.</p>
+        <ol>
+          <li>Create › Shader Graph › URP › Lit, named <code>SG_ScrappyBody</code>. Opaque, no alpha clipping. Add BaseMap, Normal and MaskMap like URP Lit.</li>
+          <li><b>Skin tone:</b> add a Color <code>_SkinTone</code> (default white). Base Color = Lerp(BaseMap.rgb, BaseMap.rgb × <code>_SkinTone</code>, BaseMap.a). The alpha is Alex's tint mask.</li>
+          <li><b>Hidden skin (vertex stage):</b> add a Float <code>_HiddenRegions</code>. UV node (UV1) › Split R › Floor = region. Power(2, region) › Divide(<code>_HiddenRegions</code> by it) › Floor › Modulo 2 = hidden (1 or 0). Vertex Position = Position (Object) × (1 − hidden). Hidden faces shrink to a point and are never drawn, including in shadows.</li>
+          <li>Skin tones live in a <code>SkinTonePalette</code> asset (a list of colours); the outfit stores the index. The first entry is white, which shows the texture as painted.</li>
+          <li>The body has three materials; set both values on each. <code>renderer.materials</code> makes per-character copies, so destroy them when the character goes.</li>
+          <li>Masks can use the same tint trick for team colours: a copy of the graph, <code>SG_ScrappyMask</code>, fed with the team's colour.</li>
+        </ol>
+      </div>
+
+      <div class="task" data-owner="joe" id="network">
+        <div class="task-head"><span class="who joe">Joe</span><h3>7 · Multiplayer</h3></div>
+        <p>Copy how the player name works in <code>Player.cs</code>: the owner sends its saved outfit (body, skin tone, clothes) with a ServerRpc, the server checks the IDs, and a SyncVar shares it. The character applies it when spawned and whenever it or the character's team changes. Team masks come from the team, not from this.</p>
+        <details class="code">
+          <summary><code>CharacterAppearance.cs</code> and <code>Player.cs</code> additions</summary>
+          <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>/// &lt;summary&gt;Everything another peer needs to draw this character. Ids come from WardrobeCatalog; 0 = slot empty.&lt;/summary&gt;
+[System.Serializable]
+public struct CharacterAppearance : System.IEquatable&lt;CharacterAppearance&gt;
+{
+    public byte Body, SkinTone;     // SkinTone indexes SkinTonePalette
+    public ushort Torso, Legs, Feet, Hands, Headwear, Backpack, Accessory;
+    public ushort Mask;             // own pick; the team's mask wins while the character is on a team
+
+    public bool Equals(CharacterAppearance o) =&gt;
+        Body == o.Body &amp;&amp; SkinTone == o.SkinTone &amp;&amp; Torso == o.Torso &amp;&amp; Legs == o.Legs &amp;&amp; Feet == o.Feet &amp;&amp;
+        Hands == o.Hands &amp;&amp; Headwear == o.Headwear &amp;&amp; Backpack == o.Backpack &amp;&amp; Accessory == o.Accessory &amp;&amp;
+        Mask == o.Mask;
+}
+
+// Player.cs
+public readonly SyncVar&lt;CharacterAppearance&gt; Appearance =
+    new SyncVar&lt;CharacterAppearance&gt;(new SyncTypeSettings() { SendRate = 0f });
+
+[ServerRpc]
+private void ServerSetAppearance(CharacterAppearance wanted) =&gt;
+    Appearance.Value = WardrobeCatalog.Instance.Sanitise(wanted); // unknown or locked ids -&gt; slot default
+
+// In OnStartClient, next to SendLocalName():
+//     ServerSetAppearance(LocalAppearance.Load());   // PlayerPrefs + JsonUtility, like LocalDisplayName</code></pre></div>
+        </details>
+        <ul>
+          <li>Keep the struct plain bytes and ushorts. Never send it as <code>object</code>.</li>
+          <li>Add <code>CharacterAppearanceView</code> and <code>SpringChain</code> to <code>BGMCharacter.ServerOnlyCosmeticComponentNames</code> so dedicated servers skip the meshes.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- PHYSICS -->
+    <section class="chapter" id="physics">
+      <header>
+        <h2>Backpack motion</h2>
+        <p>The backpack is a normal item: on, off and swapped like clothing, and its swing bones come and go with it. Motion is added on top of the animation, never instead of it.</p>
+      </header>
+      <div class="task" data-owner="joe">
+        <div class="task-head"><span class="who joe">Joe</span><h3>Spring component</h3></div>
+        <ul>
+          <li>One <code>SpringChain</code> on the backpack, listing its swing bones parents first. Start with <code>Backpack_Main</code> stiffness 0.35, damping 0.3, and <code>Backpack_Flap</code> 0.08, 0.15.</li>
+          <li>Body colliders are simple spheres (<code>SpringCollider</code>, not physics colliders) on Spine, UpperChest, Hips and Head, set up once on the prefab and given to every item.</li>
+          <li>It stops beyond 30 m from the camera and is off on dedicated servers. The weather can push it through <code>SpringChain.Wind</code>.</li>
+          <li>Later, the same component handles jacket hems, scarves and straps. For real cloth like capes, look at Magica Cloth 2 then. Avoid Unity Cloth on characters.</li>
+        </ul>
+        <details class="code">
+          <summary><code>SpringChain.cs</code>, <code>SpringCollider.cs</code></summary>
+          <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>using UnityEngine;
+
+/// &lt;summary&gt;
+/// Verlet secondary motion for an item's spring bones (Backpack_Main, Backpack_Flap, strap links). One component
+/// per item; bones are listed parents before children. Each bone starts from its rest pose under its already-solved
+/// parent every frame, so animation stays in charge and this only adds lag, sway and bounce.
+/// &lt;/summary&gt;
+[DefaultExecutionOrder(20000)] // after Animancer, FinalIK and socket followers (10000)
+public sealed class SpringChain : MonoBehaviour
+{
+    [System.Serializable]
+    public struct Bone
+    {
+        public Transform Transform;
+        [Range(0f, 1f)] public float Stiffness;      // pull back towards the animated pose
+        [Range(0f, 1f)] public float Damping;
+    }
+
+    public Bone[] Bones;                             // parents before children; _Tip bones are not listed
+    public Vector3 Gravity = new Vector3(0f, -1.5f, 0f);
+    public float Radius = 0.04f;
+    public float MaxDistance = 30f;
+    public SpringCollider[] Colliders;               // body proxies, set on equip
+    public static Vector3 Wind;                      // set by the weather system
+
+    Quaternion[] _rest;
+    Vector3[] _localTip, _tip, _previous;
+
+    void OnEnable()
+    {
+        int n = Bones.Length;
+        _rest = new Quaternion[n]; _localTip = new Vector3[n]; _tip = new Vector3[n]; _previous = new Vector3[n];
+        for (int i = 0; i &lt; n; i++)
+        {
+            Transform bone = Bones[i].Transform;
+            _rest[i] = bone.localRotation;
+            _localTip[i] = TipOf(bone);
+            _tip[i] = _previous[i] = bone.TransformPoint(_localTip[i]);
+        }
+    }
+
+    // The bone's "_Tip" child gives the lever; otherwise its first child.
+    static Vector3 TipOf(Transform bone)
+    {
+        foreach (Transform child in bone) if (child.name.EndsWith("_Tip")) return child.localPosition;
+        return bone.childCount &gt; 0 ? bone.GetChild(0).localPosition : Vector3.up * 0.1f;
+    }
+
+    void LateUpdate()
+    {
+        Camera view = Camera.main;
+        bool near = view == null || (view.transform.position - transform.position).sqrMagnitude &lt; MaxDistance * MaxDistance;
+        float dt = Mathf.Min(Time.deltaTime, 1f / 30f);
+        for (int i = 0; i &lt; Bones.Length; i++)
+        {
+            Transform bone = Bones[i].Transform;
+            bone.localRotation = _rest[i];                   // rest pose under the parent solved this frame
+            Vector3 target = bone.TransformPoint(_localTip[i]);
+            if (!near) { _tip[i] = _previous[i] = target; continue; }
+
+            Vector3 next = _tip[i] + (_tip[i] - _previous[i]) * (1f - Bones[i].Damping) + (Gravity + Wind) * (dt * dt);
+            next += (target - next) * Bones[i].Stiffness;
+            foreach (SpringCollider c in Colliders) if (c != null) next = c.PushOut(next, Radius);
+            float length = (target - bone.position).magnitude;
+            next = bone.position + (next - bone.position).normalized * length;
+
+            _previous[i] = _tip[i];
+            _tip[i] = next;
+            bone.rotation = Quaternion.FromToRotation(target - bone.position, next - bone.position) * bone.rotation;
+        }
+    }
+}
+
+/// &lt;summary&gt;A body proxy for springs. Not a physics collider: the character controller and raycasts never see it.&lt;/summary&gt;
+public sealed class SpringCollider : MonoBehaviour
+{
+    public float Radius = 0.12f;
+
+    public Vector3 PushOut(Vector3 point, float extra)
+    {
+        Vector3 offset = point - transform.position;
+        float r = Radius + extra;
+        return offset.sqrMagnitude &lt; r * r ? transform.position + offset.normalized * r : point;
+    }
+}</code></pre></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ANIMATION -->
+    <section class="chapter" id="anim">
+      <header>
+        <h2>Animations</h2>
+        <p>Existing animations need nothing: every body uses CM_Scrappy's avatar, so every clip plays on every body.</p>
+      </header>
+      <div class="grid2">
+        <div class="task" data-owner="joe">
+          <div class="task-head"><span class="who joe">Joe</span><h3>Adding a bought animation</h3></div>
+          <ol>
+            <li>Drop the FBX into <code>Assets/Art/Characters/Scrappy/Animations/</code>. It imports as Humanoid automatically.</li>
+            <li>Rig › Configure: every bone green.</li>
+            <li>Animation tab: Loop Time for cycles. Bake root rotation, Y and XZ into the pose, because the character doesn't use root motion (except clips named <code>[RM]</code>).</li>
+            <li>Preview it on the character; check feet and hands.</li>
+            <li>Assign it to the right Animancer state on <code>CharacterVisual</code> (MoveState, JumpState…). Upper-body clips use <code>GunUpperMask</code>.</li>
+          </ol>
+        </div>
+        <div class="task" data-owner="alex">
+          <div class="task-head"><span class="who alex">Alex</span><h3>Animating in Blender</h3></div>
+          <ol>
+            <li>Animate <code>Skeleton</code> in the master file, one Action per clip.</li>
+            <li>Export only the armature as <code>A_Scrappy_&lt;Name&gt;.fbx</code> (<code>_Loop</code> for cycles), same settings as the script plus Bake Animation on.</li>
+            <li>Save it into the <code>Animations/</code> folder. It matches the rig exactly.</li>
+            <li>Leave swing bones un-keyed; the springs drive them.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADD LATER -->
+    <section class="chapter" id="add">
+      <header>
+        <h2>Adding more later</h2>
+        <p>New masks, items and bodies are content work, never code. Ticks are saved in your browser.</p>
+      </header>
+      <div class="grid2">
+        <div class="task" data-owner="alex">
+          <div class="task-head"><span class="who alex">Alex</span><h3>New mask</h3></div>
+          <ul class="check">
+            <li><input type="checkbox" id="ck-m1"><label for="ck-m1">Model it on <code>Body_M_01</code>'s head in the <code>Mask</code> collection; no Armature modifier</label></li>
+            <li><input type="checkbox" id="ck-m2"><label for="ck-m2">Fits <code>Body_F_01</code> too; under 1.5k triangles</label></li>
+            <li><input type="checkbox" id="ck-m3"><label for="ck-m3">Texture 1024 or 512; team-colour areas white in the alpha, if used</label></li>
+            <li><input type="checkbox" id="ck-m4"><label for="ck-m4">Run the export (<code>SM_Mask_&lt;Name&gt;.fbx</code>)</label></li>
+          </ul>
+        </div>
+        <div class="task" data-owner="joe">
+          <div class="task-head"><span class="who joe">Joe</span><h3>Register the mask</h3></div>
+          <ul class="check">
+            <li><input type="checkbox" id="ck-n1"><label for="ck-n1"><kbd>Ctrl R</kbd>; material from its textures (<code>SG_ScrappyMask</code> if it takes team colour)</label></li>
+            <li><input type="checkbox" id="ck-n2"><label for="ck-n2"><code>WardrobeItem</code>: new id, slot Mask, hides Face</label></li>
+            <li><input type="checkbox" id="ck-n3"><label for="ck-n3">Add it to <code>WardrobeCatalog</code>; give it to a team in the gamemode if it's a team mask</label></li>
+            <li><input type="checkbox" id="ck-n4"><label for="ck-n4">Check it in play mode on each body</label></li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="task" data-owner="alex">
+          <div class="task-head"><span class="who alex">Alex</span><h3>New clothing item</h3></div>
+          <ul class="check">
+            <li><input type="checkbox" id="ck-a1"><label for="ck-a1">Model it on <code>Body_M_01</code> in rest pose, in its slot collection</label></li>
+            <li><input type="checkbox" id="ck-a2"><label for="ck-a2">Armature modifier to <code>Skeleton</code>; weights by Data Transfer from the body</label></li>
+            <li><input type="checkbox" id="ck-a3"><label for="ck-a3">Limit Total 4, Normalize All; pose-test it</label></li>
+            <li><input type="checkbox" id="ck-a4"><label for="ck-a4">Swing bones with <code>_Tip</code> and Deform on, if anything dangles</label></li>
+            <li><input type="checkbox" id="ck-a5"><label for="ck-a5">A female fit if it doesn't fit both bodies</label></li>
+            <li><input type="checkbox" id="ck-a6"><label for="ck-a6">Textures with the URP preset, within budget</label></li>
+            <li><input type="checkbox" id="ck-a7"><label for="ck-a7">Run the export; send Joe the handoff note</label></li>
+          </ul>
+        </div>
+        <div class="task" data-owner="joe">
+          <div class="task-head"><span class="who joe">Joe</span><h3>Register it</h3></div>
+          <ul class="check">
+            <li><input type="checkbox" id="ck-j1"><label for="ck-j1"><kbd>Ctrl R</kbd>; check it imported as Humanoid with no avatar errors</label></li>
+            <li><input type="checkbox" id="ck-j2"><label for="ck-j2">Materials from the textures (URP/Lit)</label></li>
+            <li><input type="checkbox" id="ck-j3"><label for="ck-j3"><code>WardrobeItem</code>: new id, slot, hidden regions, prefab per fit</label></li>
+            <li><input type="checkbox" id="ck-j4"><label for="ck-j4">Add it to <code>WardrobeCatalog</code></label></li>
+            <li><input type="checkbox" id="ck-j5"><label for="ck-j5">Spring settings for any swing bones</label></li>
+            <li><input type="checkbox" id="ck-j6"><label for="ck-j6">Try it on every body in play mode</label></li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="task" data-owner="both">
+          <div class="task-head"><span class="who both">Both</span><h3>New body (female first)</h3></div>
+          <ul>
+            <li>Same <code>Skeleton</code>, same rest pose. Keep hands, feet and head close to the male's so gloves, boots and masks stay shared.</li>
+            <li>Weights by Data Transfer from <code>Body_M_01</code>, then fix by hand; the same 12 region groups.</li>
+            <li>Female fits: duplicate the male item, Surface Deform it from <code>Body_M_01</code> onto <code>Body_F_01</code>, apply, re-transfer weights. Same UVs and material, <code>_F</code> name.</li>
+            <li>Joe adds a <code>BodyDefinition</code> and the slot defaults for it.</li>
+            <li>If a body ever needs different bone lengths, talk first. That means a separate avatar per body and a much bigger job.</li>
+          </ul>
+        </div>
+        <div class="task" data-owner="both">
+          <div class="task-head"><span class="who both">Both</span><h3>Handoff note</h3></div>
+          <p>One per item, in the commit message or task.</p>
+          <div class="codebox" style="border:1px solid var(--line);border-radius:10px;overflow:hidden"><button class="copy" type="button">Copy</button><pre><code>Item:     Torso_Jacket01
+Slot:     Torso
+Fits:     M, F
+Hides:    Chest, Stomach, UpperArms, Forearms
+Material: M_Torso_Jacket01 (2048)
+Tris:     4,300
+Swing:    Torso_Jacket01_HemL_01 > _Tip
+Notes:    Collar touches the skull mask at full head tilt</code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DON'T -->
+    <section class="chapter" id="dont">
+      <header>
+        <h2>Don't do this</h2>
+        <p>These break things the game already depends on. Talk to each other first.</p>
+      </header>
+      <ul class="dont">
+        <li><b>Change a bone in <code>Skeleton</code></b><span>Renaming, reparenting, re-rolling or re-posing breaks the 92 prefab references (IK, Legs Animator, sockets), the avatar and every item.</span></li>
+        <li><b>Move or rename <code>CM_Scrappy.fbx</code> in Explorer</b><span>It loses its ID and ScrappyCharacter loses its model and avatar. Move it inside Unity only.</span></li>
+        <li><b>Edit CM_Scrappy's Humanoid mapping</b><span>Every clip, IK target and hit zone shifts.</span></li>
+        <li><b>Delete the combined mesh from CM_Scrappy.fbx early</b><span>Switch its renderer off in the prefab instead, once the new pieces work.</span></li>
+        <li><b>Export pieces with different settings</b><span>Pieces float or twist around the bones. Always use the script.</span></li>
+        <li><b>Reuse or change an item or body ID</b><span>Saved outfits and other players show the wrong thing. Retire old IDs instead.</span></li>
+        <li><b>Stack up renderers</b><span>More than about 7 pieces per character gets expensive with 16 players, especially on laptops.</span></li>
+      </ul>
+    </section>
+
+    <!-- QUICK REFERENCE -->
+    <section class="chapter" id="ref">
+      <header>
+        <h2>Quick reference</h2>
+      </header>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Thing</th><th>Pattern</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Armature</td><td><code>Skeleton</code></td><td>never rename</td></tr>
+            <tr><td>Body</td><td><code>Body_&lt;Fit&gt;_&lt;NN&gt;</code></td><td><code>Body_M_01</code>, <code>Body_F_01</code></td></tr>
+            <tr><td>Item</td><td><code>&lt;Slot&gt;_&lt;Name&gt;&lt;NN&gt;_&lt;Fit&gt;</code></td><td><code>Torso_Jacket01_M</code>, <code>Mask_Skull01_U</code></td></tr>
+            <tr><td>Fit tags</td><td><code>M</code>, <code>F</code>, <code>U</code> (any body)</td><td></td></tr>
+            <tr><td>Exported file</td><td><code>SK_&lt;name&gt;.fbx</code> skinned · <code>SM_&lt;name&gt;.fbx</code> mask or hat</td><td><code>SK_Backpack_Scrap01_U.fbx</code>, <code>SM_Mask_Skull01_U.fbx</code></td></tr>
+            <tr><td>Swing bones</td><td><code>&lt;Item&gt;_&lt;Part&gt;</code>, ends in <code>_Tip</code></td><td><code>Backpack_Flap_Tip</code></td></tr>
+            <tr><td>Body regions</td><td><code>Region_&lt;Region&gt;</code></td><td><code>Region_Chest</code></td></tr>
+            <tr><td>Material / textures</td><td><code>M_&lt;Item&gt;</code> / <code>T_&lt;Item&gt;_BaseMap</code>, <code>_Normal</code>, <code>_MaskMap</code></td><td><code>M_Torso_Jacket01</code></td></tr>
+            <tr><td>Animation</td><td><code>A_Scrappy_&lt;Name&gt;[_Loop].fbx</code></td><td><code>A_Scrappy_Wave_Loop.fbx</code></td></tr>
+            <tr><td>Work in progress</td><td>leading <code>_</code></td><td>skipped by the export</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h3>Where things live</h3>
+          <ul>
+            <li><code>ArtSource/Characters/Scrappy/Scrappy_Master.blend</code></li>
+            <li><code>ArtSource/Tools/export_scrappy_parts.py</code></li>
+            <li><code>Assets/Art/Characters/Scrappy/Bodies/</code></li>
+            <li><code>Assets/Art/Characters/Scrappy/Wardrobe/&lt;Slot&gt;/</code></li>
+            <li><code>Assets/Art/Characters/Scrappy/Animations/</code></li>
+            <li><code>Assets/Art/Characters/Scrappy/Textures/&lt;Item&gt;/</code></li>
+            <li>Skeleton and avatar: <code>Assets/Meshes/CM_Prefab_01/CM_Scrappy.fbx</code></li>
+            <li>Mask socket: <code>… › Head › Socket_Head</code> in the prefab</li>
+            <li>Team masks: <code>Teams</code> list on the gamemode (<code>BasicGamemode</code>)</li>
+            <li>Character: <code>Assets/Resources/Prefabs/Characters/ScrappyCharacter.prefab</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Commands</h3>
+          <p><b>Export everything</b> (repository root):</p>
+<pre class="cmd">blender -b ArtSource/Characters/Scrappy/Scrappy_Master.blend --python ArtSource/Tools/export_scrappy_parts.py -- .</pre>
+          <p><b>Pick up new files in Unity:</b> <kbd>Ctrl R</kbd>, or Assets › Refresh Changed Assets (auto-refresh is off in this project).</p>
+          <p><b>Check a new piece:</b> the <a href="#ghost">ghost test</a>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var main = document.getElementById('main');
+  var buttons = document.querySelectorAll('.seg button');
+  function store(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+  function read(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function setView(view) {
+    main.setAttribute('data-view', view);
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === view)); });
+    store('scrappy-guide-view', view);
+  }
+  buttons.forEach(function (b) { b.addEventListener('click', function () { setView(b.getAttribute('data-view')); }); });
+  var saved = read('scrappy-guide-view');
+  if (saved === 'alex' || saved === 'joe') setView(saved);
+
+  document.querySelectorAll('ul.check input[type="checkbox"]').forEach(function (box) {
+    if (read('scrappy-guide-' + box.id) === '1') box.checked = true;
+    box.addEventListener('change', function () { store('scrappy-guide-' + box.id, box.checked ? '1' : '0'); });
+  });
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.parentElement.querySelector('pre');
+      var text = code ? code.innerText : '';
+      function selectFallback() {
+        var range = document.createRange(); range.selectNodeContents(code);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        btn.textContent = 'Press Ctrl C';
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = 'Copied';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+        }, selectFallback);
+      } else { selectFallback(); }
+    });
+  });
+
+  var toc = document.getElementById('toc-details');
+  if (window.matchMedia && !window.matchMedia('(min-width: 1080px)').matches) toc.removeAttribute('open');
+})();
+</script>
+</body>
+</html>
