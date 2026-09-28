@@ -126,7 +126,12 @@ pre.tree { margin: 0; overflow-x: auto; background: var(--surface); border: 1px 
 ol.steps, ul.steps { list-style: none; padding-left: 0; gap: 10px; counter-reset: step; max-width: none; }
 ol.steps > li, ul.steps > li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
 ol.steps > li { counter-increment: step; }
-ol.steps > li > .step-body::before { content: counter(step) ". "; font-weight: 700; }
+ol.steps > li > .step-body > p:first-child::before { content: counter(step) ". "; font-weight: 700; }
+.dl-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; max-width: none; }
+.dl { font: 700 .85rem/1 var(--body); padding: .65em 1em; border-radius: 8px; border: 1.5px solid var(--alex); background: var(--surface); color: var(--alex-ink); cursor: pointer; }
+.dl:hover { background: var(--alex-tint); }
+.checked { font-size: .85rem; color: var(--ok); }
+.checked::before { content: "✓ "; }
 .step-body { display: grid; gap: 6px; min-width: 0; }
 .step-body > p { max-width: 72ch; }
 input[type="checkbox"] { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ink); cursor: pointer; }
@@ -188,7 +193,6 @@ main[data-view="all"] .filter-note { display: none; }
       <ol>
         <li><a href="#plan"><span class="dot keep"></span>The plan</a></li>
         <li><a href="#decisions"><span class="dot keep"></span>Decisions</a></li>
-        <li><a href="#steps"><span class="dot both"></span>Milestones M1–M5</a></li>
         <li><a href="#rig"><span class="dot both"></span>Rig &amp; body (J1, A1–A2)</a></li>
         <li><a href="#clothes"><span class="dot alex"></span>Clothes &amp; masks (A3–A7)</a></li>
         <li><a href="#export"><span class="dot alex"></span>Textures &amp; export (A8–A9)</a></li>
@@ -210,6 +214,7 @@ main[data-view="all"] .filter-note { display: none; }
       <header>
         <h2>The plan</h2>
         <p>Joe rigs the stylized base body (<code>BodyBaseMesh_01.fbx</code>) in AccuRIG. That skeleton, <code>Scrappy_Rig</code>, becomes the one skeleton for every body and item. Alex weights bodies and clothes to it; masks and hats are plain meshes on a head socket. In Unity, each character loads and attaches only the pieces it wears, and animation, IK and gameplay stay untouched.</p>
+        <p><b>Order:</b> J1 → A1–A2 → A9 (rig and body) → J2–J3, which gets the new rig playable. After that, Alex's A3–A8 and Joe's J4–J7 run side by side.</p>
       </header>
 <pre class="tree" aria-label="Target hierarchy"><span class="k">ScrappyCharacter</span>               <span class="c">gameplay, networking · unchanged</span>
 └─ <span class="k">CharacterVisual</span>             <span class="c">Animator (Scrappy_Rig avatar), Animancer, FinalIK, Legs Animator</span>
@@ -233,7 +238,7 @@ main[data-view="all"] .filter-note { display: none; }
         <table>
           <thead><tr><th>Area</th><th>Decision</th><th>Why</th></tr></thead>
           <tbody>
-            <tr><td><b>Rig</b></td><td>Fresh AccuRIG rig on the base body; its A-pose is the rest pose. Frozen once M1 ships.</td><td>The old rig was fitted to the clothed mesh and cut down to 62 bones. The clothes were modelled on this A-pose body, and A-pose deforms shoulders better. Unity handles it with Enforce T-Pose.</td></tr>
+            <tr><td><b>Rig</b></td><td>Fresh AccuRIG rig on the base body; its A-pose is the rest pose. Frozen once J3 is done.</td><td>The old rig was fitted to the clothed mesh and cut down to 62 bones. The clothes were modelled on this A-pose body, and A-pose deforms shoulders better. Unity handles it with Enforce T-Pose.</td></tr>
             <tr><td><b>Bones</b></td><td>AccuRIG's <code>CC_Base_*</code> names; keep the arm twist bones; remove helper, toe, breast and face bones.</td><td>Twist bones stop wrists pinching when holding tools, driven by FinalIK's <code>TwistRelaxer</code>. Helper bones need drivers Unity doesn't have.</td></tr>
             <tr><td><b>Files</b></td><td>The master <code>.blend</code> holds only the rig and bodies. Every item has its own <code>.blend</code> and FBX, linking the rig and body from the master.</td><td>Hundreds of items stay small and independent; nobody edits one giant file.</td></tr>
             <tr><td><b>Clothes</b></td><td>Skinned to the one skeleton, weights copied from the body.</td><td>The standard way to do outfits; animation, IK and hit reactions work unchanged.</td></tr>
@@ -248,51 +253,11 @@ main[data-view="all"] .filter-note { display: none; }
       </div>
     </section>
 
-    <!-- MILESTONES -->
-    <section class="chapter" id="steps">
-      <header>
-        <h2>Milestones M1–M5</h2>
-        <p>Each is playable on its own. Finish one before starting the next.</p>
-      </header>
-      <div class="milestones">
-        <div class="ms" id="m1">
-          <div class="ms-label"><b>M1</b><span>New rig in game</span></div>
-          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p><a href="#cleanrig">A1</a>, <a href="#bodyweights">A2</a>, <a href="#export-run">A9</a></p></div>
-          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p><a href="#accurig">J1</a> first, then <a href="#settings">J2</a>, <a href="#rehook">J3</a></p></div>
-          <p class="done"><span><b>Done when</b> the bare body plays every state (move, jump, swim, climb, parkour, aim, hit, death) with no missing references and clean wrists.</span></p>
-        </div>
-        <div class="ms" id="m2">
-          <div class="ms-label"><b>M2</b><span>Everything swaps</span></div>
-          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p><a href="#clothes-pose">A3</a>–<a href="#masks">A6</a>, <a href="#textures">A8</a>, <a href="#export-run">A9</a></p></div>
-          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p><a href="#data">J4</a>–<a href="#shader">J6</a></p></div>
-          <p class="done"><span><b>Done when</b> every slot and skin tone changes in the lobby with no skin showing through.</span></p>
-        </div>
-        <div class="ms" id="m3">
-          <div class="ms-label"><b>M3</b><span>Teams &amp; multiplayer</span></div>
-          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p>One mask per team (<a href="#masks">A6</a>); icons</p></div>
-          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p>Replication and team masks (<a href="#data">J4</a>), lobby preloading (<a href="#equip">J5</a>)</p></div>
-          <p class="done"><span><b>Done when</b> each team wears its mask, players see each other's outfits, and spawns never wait for loading.</span></p>
-        </div>
-        <div class="ms" id="m4">
-          <div class="ms-label"><b>M4</b><span>Backpack motion</span></div>
-          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p><a href="#backpack">A7</a></p></div>
-          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p><a href="#springs">J7</a></p></div>
-          <p class="done"><span><b>Done when</b> the pack sways and bounces without going through the back.</span></p>
-        </div>
-        <div class="ms" id="m5">
-          <div class="ms-label"><b>M5</b><span>Female body</span></div>
-          <div class="lane alex" data-owner="alex"><span class="who alex">Alex</span><p><a href="#newbody">New body</a>, steps 1–4</p></div>
-          <div class="lane joe" data-owner="joe"><span class="who joe">Joe</span><p><a href="#newbody">New body</a>, step 5</p></div>
-          <p class="done"><span><b>Done when</b> switching body in the lobby keeps animation, IK and every item that fits.</span></p>
-        </div>
-      </div>
-    </section>
-
     <!-- RIG & BODY -->
     <section class="chapter" id="rig">
       <header>
         <h2>Rig &amp; body</h2>
-        <p>Blender work uses a current LTS (4.5 or newer). The master file is <code>ArtSource/Characters/Scrappy/Scrappy_Master.blend</code>, next to <code>Assets/</code>, never inside it. Save before running any script.</p>
+        <p>Blender 3.6 or newer; menu paths below are the same in 3.6 and 4.x. The master file is <code>ArtSource/Characters/Scrappy/Scrappy_Master.blend</code>, next to <code>Assets/</code>, never inside it. Save before running any script.</p>
       </header>
 
       <div class="task" data-owner="joe" id="accurig">
@@ -326,12 +291,15 @@ main[data-view="all"] .filter-note { display: none; }
             </ul></li>
           <li><p><b>Remove them without losing weights.</b> The script moves each removed bone's weights into its nearest kept parent, then deletes the bone.</p>
             <ul class="sub">
-              <li>Scripting workspace › Text Editor › New, paste, Run Script (▶). Window › Toggle System Console shows what it removed; if it looks wrong, reopen the saved file.</li>
+              <li>Download the script (button below) and save it in <code>ArtSource/Tools/</code>.</li>
+              <li>Save the .blend. Click the <b>Scripting</b> tab at the top of Blender. In the Text Editor: Text › Open, pick <code>merge_removed_bones.py</code>, then click <b>Run Script</b> (▶) in the editor's header.</li>
+              <li>Window › Toggle System Console lists every bone it removed. If the list looks wrong, File › Revert.</li>
               <li>By hand instead, per bone: Vertex Weight Mix modifier on the body (A = kept parent, B = removed bone, Vertex Set All, Mix Mode Add), moved above the Armature modifier and applied; delete that vertex group; in the rig's Edit Mode select the bone, <kbd>X</kbd> › Delete Bones.</li>
             </ul>
+            <p class="dl-row"><button class="dl" type="button" data-src="merge-script" data-name="merge_removed_bones.py">⭳ Download merge_removed_bones.py</button><span class="checked">Checked against Blender 3.6 and 4.x</span></p>
             <details class="code">
-              <summary><code>merge_removed_bones.py</code></summary>
-              <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>"""Moves the weights of unwanted AccuRIG bones into their nearest kept parent, then deletes those bones."""
+              <summary>View the script</summary>
+              <div class="codebox"><button class="copy" type="button">Copy</button><pre id="merge-script"><code>"""Moves the weights of unwanted AccuRIG bones into their nearest kept parent, then deletes those bones."""
 import re
 import bpy
 
@@ -433,7 +401,12 @@ print("Removed %d bones: %s" % (len(doomed), ", ".join(doomed)))</code></pre></d
       <div class="task" data-owner="alex" id="clothes-weights">
         <div class="task-head"><span class="who alex">Alex</span><h3>A4 · Weight every clothing piece from the body</h3></div>
         <ol class="steps">
-          <li><p><b>Install Robust Weight Transfer</b> once: a free add-on that gives sensible weights where cloth sits away from the body. Edit › Preferences › Get Extensions; if it isn't listed, install it from its GitHub release.</p></li>
+          <li><p><b>Install Robust Weight Transfer</b> once: a free add-on that gives sensible weights where cloth sits away from the body.</p>
+            <ul class="sub">
+              <li>Download its release <code>.zip</code> from its GitHub page (don't unzip it).</li>
+              <li>Blender 3.6: Edit › Preferences › Add-ons › Install…, pick the zip, then tick its checkbox. Blender 4.2+: Edit › Preferences › Get Extensions › search for it, or the ▾ menu › Install from Disk.</li>
+              <li>If your Blender version won't take it, use the built-in fallback in step 4; it's slower to clean up but gives the same result.</li>
+            </ul></li>
           <li><p><b>Open the item's file.</b> To pose the linked rig for testing: Outliner › right-click it › Library Override › Make › Selected (local to this file).</p></li>
           <li><p><b>Clear old weights.</b> Object Data Properties › Vertex Groups › dropdown › Delete All Groups. Modifier Properties: remove old Armature modifiers, then Add Modifier › Deform › Armature, Object = <code>Scrappy_Rig</code>.</p></li>
           <li><p><b>Transfer.</b> Click <code>Body_M_01</code>, <kbd>Shift</kbd>-click the piece (piece active), run the add-on from its <kbd>N</kbd> sidebar tab with default settings.</p>
@@ -508,10 +481,21 @@ print("Removed %d bones: %s" % (len(doomed), ", ".join(doomed)))</code></pre></d
       <div class="task" data-owner="alex" id="export-run">
         <div class="task-head"><span class="who alex">Alex</span><h3>A9 · Export</h3></div>
         <ol class="steps">
-          <li><p><b>Save the script once</b> as <code>ArtSource/Tools/export_scrappy_parts.py</code>. Run on the master it exports the rig and bodies; run on an item file it exports that item. It never exports linked objects or anything named with a leading <code>_</code>.</p>
+          <li><p><b>Set up once.</b> Download both files into <code>ArtSource/Tools/</code>, keeping their names.</p>
+            <p class="dl-row"><button class="dl" type="button" data-src="export-script" data-name="export_scrappy_parts.py">⭳ Download export_scrappy_parts.py</button><button class="dl" type="button" data-src="export-bat" data-name="Export to Unity.bat">⭳ Download Export to Unity.bat</button><span class="checked">Checked against Blender 3.6 and 4.x</span></p>
+            <ul class="sub">
+              <li>The script does the exporting. Given the master file it exports the rig and bodies; given an item file, that item. It skips linked objects and anything named with a leading <code>_</code>.</li>
+              <li>The <code>.bat</code> runs Blender in the background for you, so there's nothing to type. Right-click it › Edit and check the <code>BLENDER</code> line points at your <code>blender.exe</code>. It's set for Blender 3.6 in its default folder. If yours is elsewhere (Steam, another version), right-click your Blender shortcut › Open file location and paste that path. Save.</li>
+            </ul>
             <details class="code">
-              <summary><code>export_scrappy_parts.py</code></summary>
-              <div class="codebox"><button class="copy" type="button">Copy</button><pre><code>"""Exports the pieces in one .blend for Unity: the rig and bodies from Scrappy_Master.blend, items from item files.
+              <summary>View the files</summary>
+              <div class="codebox"><button class="copy" type="button">Copy</button><pre id="export-bat"><code>@echo off
+rem Drag one or more .blend files onto this file to export them to Unity.
+set BLENDER="C:\Program Files\Blender Foundation\Blender 3.6\blender.exe"
+cd /d "%~dp0..\.."
+for %%f in (%*) do %BLENDER% -b "%%~f" --python ArtSource\Tools\export_scrappy_parts.py -- .
+pause</code></pre></div>
+              <div class="codebox"><button class="copy" type="button">Copy</button><pre id="export-script"><code>"""Exports the pieces in one .blend for Unity: the rig and bodies from Scrappy_Master.blend, items from item files.
 
 blender -b &lt;file.blend&gt; --python export_scrappy_parts.py -- &lt;unity project folder&gt; [name filter]
 """
@@ -604,17 +588,14 @@ for collection, folder in FOLDERS.items():
             bake_regions(obj)
         export([obj, armature], os.path.join(project, OUT, folder, "SK_" + obj.name + ".fbx"))</code></pre></div>
             </details></li>
-          <li><p><b>Save the .blend</b> and make sure its collections aren't excluded in the Outliner.</p></li>
-          <li><p><b>Open a terminal in the repository root</b> (the folder with <code>Assets</code> and <code>ArtSource</code>): click File Explorer's address bar, type <code>cmd</code>, Enter.</p></li>
-          <li><p><b>Run</b> the line you need (change <code>4.5</code> to your Blender version):</p>
-            <ul class="sub"><li>One item, the usual case:</li></ul>
-<pre class="cmd">"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" -b ArtSource\Characters\Scrappy\Items\Mask\Mask_Skull01.blend --python ArtSource\Tools\export_scrappy_parts.py -- .</pre>
-            <ul class="sub"><li>Rig and bodies, after changing the master:</li></ul>
-<pre class="cmd">"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" -b ArtSource\Characters\Scrappy\Scrappy_Master.blend --python ArtSource\Tools\export_scrappy_parts.py -- .</pre>
-            <ul class="sub"><li>Every item, after a script or settings change (slow with hundreds):</li></ul>
-<pre class="cmd">for /r ArtSource\Characters\Scrappy\Items %f in (*.blend) do "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" -b "%f" --python ArtSource\Tools\export_scrappy_parts.py -- .</pre>
-            <ul class="sub"><li>Add a name after the <code>.</code> (e.g. <code>-- . Torso_Shirt01_F</code>) to export only matching pieces.</li></ul></li>
-          <li><p><b>Read the output.</b> Each piece prints "Exported …". Fix anything SKIPPED (a mask still skinned, or a clothing piece with no Armature modifier) and run again.</p></li>
+          <li><p><b>Save the .blend</b> and make sure its collections aren't excluded in the Outliner (the tick box).</p></li>
+          <li><p><b>Export:</b> in File Explorer, drag the <code>.blend</code> onto <code>Export to Unity.bat</code>. Blender doesn't need to be open.</p>
+            <ul class="sub">
+              <li>An item: drag its file from <code>Items/&lt;Slot&gt;/</code>.</li>
+              <li>Rig and bodies: drag <code>Scrappy_Master.blend</code>.</li>
+              <li>Several at once: select them all and drag them together. To redo every item, search <code>*.blend</code> inside <code>Items/</code>, select all, drag.</li>
+            </ul></li>
+          <li><p><b>Read the window that opens.</b> Each piece prints "Exported …". Fix anything marked SKIPPED (a mask still skinned, or a clothing piece with no Armature modifier) and drag the file on again. Press any key to close.</p></li>
           <li><p><b>Hand over:</b> tell Joe what changed and which body regions each new item covers.</p></li>
         </ol>
       </div>
@@ -1236,7 +1217,7 @@ public sealed class SpringCollider : MonoBehaviour
     <section class="chapter" id="anim">
       <header>
         <h2>Animations</h2>
-        <p>Existing clips are Humanoid and play on the new rig once its avatar maps (checked in M1).</p>
+        <p>Existing clips are Humanoid and play on the new rig once its avatar maps (checked in J3).</p>
       </header>
       <div class="grid2">
         <div class="task" data-owner="joe" id="anim-joe">
@@ -1300,12 +1281,12 @@ public sealed class SpringCollider : MonoBehaviour
         <h2>Don't do this</h2>
       </header>
       <ul class="dont">
-        <li><b>Change a bone in the master <code>Scrappy_Rig</code> after M1</b><span>Renaming, reparenting, re-rolling or re-posing breaks the prefab's IK and sockets, the avatar and every item.</span></li>
+        <li><b>Change a bone in the master <code>Scrappy_Rig</code> after J3</b><span>Renaming, reparenting, re-rolling or re-posing breaks the prefab's IK and sockets, the avatar and every item.</span></li>
         <li><b>Reference item prefabs, materials or textures from scenes, Resources or scripts</b><span>That pulls them out of on-demand loading and into memory for everyone. Go through the catalog and <code>WardrobeLoader</code>.</span></li>
         <li><b>Move or rename files in Explorer</b><span>Unity loses their IDs and everything pointing at them. Move them inside Unity only.</span></li>
         <li><b>Stack up pieces</b><span>More than about 7 renderers per character gets expensive with 16 players on laptops.</span></li>
       </ul>
-      <p class="note">After M1 works, move the old <code>CM_Scrappy</code> files (<code>.fbx</code>, <code>.ini</code>, <code>.json</code>, <code>.iAvatar</code>, <code>back/</code>), <code>BGMCharacter.fbx</code> and <code>ScrappyCharacter_Backup_Before_Changes.prefab</code> into <code>ArtSource/</code>; nothing live uses them.</p>
+      <p class="note">Once J3 works, move the old <code>CM_Scrappy</code> files (<code>.fbx</code>, <code>.ini</code>, <code>.json</code>, <code>.iAvatar</code>, <code>back/</code>), <code>BGMCharacter.fbx</code> and <code>ScrappyCharacter_Backup_Before_Changes.prefab</code> into <code>ArtSource/</code>; nothing live uses them.</p>
     </section>
 
     <!-- REFERENCE -->
@@ -1333,7 +1314,7 @@ public sealed class SpringCollider : MonoBehaviour
         <h3>Where things live</h3>
         <ul>
           <li><code>ArtSource/Characters/Scrappy/</code>: <code>Scrappy_Master.blend</code> (rig, bodies), <code>Items/&lt;Slot&gt;/</code> (item files, <code>_ItemTemplate.blend</code>), <code>Source/</code> (AccuRIG export)</li>
-          <li><code>ArtSource/Tools/</code>: <code>export_scrappy_parts.py</code></li>
+          <li><code>ArtSource/Tools/</code>: <code>merge_removed_bones.py</code>, <code>export_scrappy_parts.py</code>, <code>Export to Unity.bat</code></li>
           <li><code>Assets/Art/Characters/Scrappy/</code>: <code>Rig/</code> (avatar), <code>Bodies/</code>, <code>Wardrobe/&lt;Slot&gt;/</code> (FBX), <code>Prefabs/&lt;Slot&gt;/</code> (addressable), <code>Items/</code> (item assets, catalog), <code>Materials/</code>, <code>Textures/</code>, <code>Icons/</code>, <code>Animations/</code></li>
           <li>Character prefab: <code>Assets/Resources/Prefabs/Characters/ScrappyCharacter.prefab</code>; team masks: <code>Teams</code> on <code>BasicGamemode</code></li>
         </ul>
@@ -1419,6 +1400,23 @@ public sealed class SpringCollider : MonoBehaviour
     boxes.forEach(function (box) {
       box.checked = false;
       box.dispatchEvent(new Event('change'));
+    });
+  });
+
+  // Download buttons: save a script shown on the page as a file (.bat files need Windows line endings).
+  document.querySelectorAll('.dl').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var name = btn.getAttribute('data-name');
+      var text = document.getElementById(btn.getAttribute('data-src')).textContent;
+      if (/\.bat$/i.test(name)) text = text.replace(/\r?\n/g, '\r\n');
+      var url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     });
   });
 
